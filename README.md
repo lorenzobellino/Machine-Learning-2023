@@ -1,0 +1,3 @@
+# Machine Learning and Pattern Recognition
+---
+This is the repository for the course of [Machine Learning and Pattern Recognition](https://didattica.polito.it/pls/portal30/gap.pkg_guide.viewGap?p_cod_ins=01SCSIU&p_a_acc=2022&p_header=S&p_lang=IT&multi=N) taught at the [Politecnico di Torino](https://www.polito.it) in the academic year 2022/2023 by professor [Sandro Cumani](https://www.polito.it/en/staff?p=023064)
