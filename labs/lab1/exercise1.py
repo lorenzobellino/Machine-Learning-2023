@@ -7,15 +7,23 @@ logging.basicConfig(level=logging.INFO)
 
 class Competitor:
     def __init__(self, name, surname, country, scores):
-        try:
-            assert len(scores) == 5
-        except AssertionError:
-            logging.error("Scores must have 5 elements -- skipping entry")
-            return None
         self.name = name
         self.surname = surname
         self.country = country
         self.scores = scores
+        self.finalScore = self.compute_final_score(scores)
+
+    def __eq__(self, other) -> bool:
+        return self.finalScore == other.finalScore
+
+    def __lt__(self, other) -> bool:
+        return self.finalScore < other.finalScore
+
+    def __str__(self) -> str:
+        return f"{self.name} {self.surname} {self.country} -- {self.finalScore:.1f}"
+
+    def compute_final_score(self, scores):
+        return sum(scores) - max(scores) - min(scores)
 
 
 def compute_ranking(filename):
@@ -27,18 +35,27 @@ def compute_ranking(filename):
     competitors = []
     with open(filename, "r") as f:
         for line in f:
-            print(line)
+            # print(line)
             name, surname, country = line.split(" ")[:3]
             scores = [float(_) for _ in line.split(" ")[3:]]
             competitor = Competitor(name, surname, country, scores)
-            if competitor is not None:
-                competitors.append(competitor)
-    # for competitor in competitors:
-    #     print(
-    #         competitor.name, competitor.surname, competitor.country, competitor.scores
-    #     )
+            competitors.append(competitor)
+
+    bestScorers = sorted(competitors, reverse=True)
+    print("Final ranking:")
+    for i, competitor in enumerate(bestScorers[:3]):
+        print(f"{i+1}: {competitor}")
+
+    countryScores = dict()
     for c in competitors:
-        print(f"name : {c.name}\nsurname : {c.surname}")
+        if c.country in countryScores:
+            countryScores[c.country] += c.finalScore
+        else:
+            countryScores[c.country] = c.finalScore
+    bestCountry = max(countryScores)
+
+    print(f"\nBest country:")
+    print(f"{bestCountry} Totatl score: {countryScores[bestCountry]:.1f}")
 
 
 if __name__ == "__main__":
