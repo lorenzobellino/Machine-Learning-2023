@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "machine-learning-2023"
+version = "0.1.1"
+description = "Machine Learning ad Pattern Recognition Course repository"
+authors = ["lorenzobellino <lor.bellino@gmail.com>"]
+readme = "README.md"
+packages = [{include = "machine_learning_2023"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
