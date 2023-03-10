@@ -60,7 +60,7 @@ def computeLine(filename, lineid):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="exercise1 : read a file and compute scores"
+        description="exercise2 : compute distance or average speeds of some bus lines"
     )
     parser.add_argument("filename", help="the file to read")
     parser.add_argument(
