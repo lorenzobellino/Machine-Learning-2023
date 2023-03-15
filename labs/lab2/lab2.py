@@ -1,7 +1,8 @@
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
-from itertools import combinations, permutations
+import argparse
+from itertools import permutations
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -9,11 +10,15 @@ logging.basicConfig(level=logging.DEBUG)
 FILENAME = "iris.csv"
 
 
-def mcol(v):
+def mcol(v) -> np.array:
     return v.reshape(v.size, 1)
 
 
-def load():
+def mrow(v) -> np.array:
+    return v.reshape(1, v.size)
+
+
+def load() -> None:
     d = []
     c = []
     labels = {"Iris-setosa": 0, "Iris-versicolor": 1, "Iris-virginica": 2}
@@ -29,7 +34,9 @@ def load():
     return dataset, classes
 
 
-def histograms(dataset, classes):
+def histograms(
+    dataset: np.array, classes: np.array, root: str = "plots/", save: bool = False
+):
     features = ["sepal length", "sepal width", "petal length", "petal width"]
     for i in range(4):
         plt.figure()
@@ -56,13 +63,16 @@ def histograms(dataset, classes):
             alpha=0.5,
         )
         plt.legend()
-        plt.savefig(f"plots/NP_hist_{features[i]}.png")
-    # plt.show()
+        if save:
+            plt.savefig(f"{root}NP_hist_{features[i]}.png")
+        else:
+            plt.show()
 
 
-def scatterplots(dataset, classes):
+def scatterplots(
+    dataset: np.array, classes: np.array, root: str = "plots/", save: bool = False
+):
     features = ["sepal length", "sepal width", "petal length", "petal width"]
-    # for f1, f2 in combinations(range(4), 2):
     for f1, f2 in permutations(range(4), 2):
         plt.figure()
         plt.title(f"Features {features[f1]} vs {features[f2]}")
@@ -87,14 +97,34 @@ def scatterplots(dataset, classes):
         plt.xlabel(features[f1])
         plt.ylabel(features[f2])
         plt.legend()
-        plt.savefig(f"plots/NP_scatter_{features[f1]}_{features[f2]}.png")
+        if save:
+            plt.savefig(f"{root}NP_scatter_{features[f1]}_{features[f2]}.png")
+        else:
+            plt.show()
 
 
-def visualization():
-    dataset, classes = load()
-    histograms(dataset, classes)
-    scatterplots(dataset, classes)
+def statistics(dataset: np.array, classes: np.array, save: bool) -> None:
+    logging.info(f"computing mean : ")
+    mu = dataset.mean(axis=1)
+    centerd_data = dataset - mu.reshape(dataset.shape[0], 1)
+    logging.info("plotting the centered data")
+    histograms(dataset=centerd_data, classes=classes, root="plots/centered/", save=save)
+    scatterplots(
+        dataset=centerd_data, classes=classes, root="plots/centered/", save=save
+    )
+
+
+def visualization(save: bool) -> None:
+    d, c = load()
+    histograms(dataset=d, classes=c, root="plots/standard/", save=save)
+    scatterplots(dataset=d, classes=c, root="plots/standard/", save=save)
+    statistics(dataset=d, classes=c, save=save)
 
 
 if __name__ == "__main__":
-    visualization()
+    parser = argparse.ArgumentParser(
+        description="lab2 : datset visualization and statistics on Iris Datatset"
+    )
+    parser.add_argument("-s", "--save", help="save the plots", action="store_true")
+    args = parser.parse_args()
+    visualization(args.save)
