@@ -31,6 +31,29 @@ def split_db_loo(D, L, i):
     return DTR, DTE, LTR, LTE
 
 
+def split_db_kfold(D, L, k):
+    # divide D and L in k folds
+    n = D.shape[1]
+    nFold = n // k
+    DTR = []
+    DTE = []
+    LTR = []
+    LTE = []
+    for i in range(k):
+        idx = np.arange(i * nFold, (i + 1) * nFold)
+        DTR.append(np.delete(D, idx, axis=1))
+        DTE.append(vcol(D[:, idx]))
+        LTR.append(np.delete(L, idx))
+        LTE.append(L[idx])
+    idx = np.arange(k * nFold, n)
+    if len(idx) > 0:
+        DTR.append(np.delete(D, idx, axis=1))
+        DTE.append(vcol(D[:, idx]))
+        LTR.append(np.delete(L, idx))
+        LTE.append(L[idx])
+    return DTR, DTE, LTR, LTE
+
+
 def split_db_2to1(D, L, seed=0):
     nTrain = int(D.shape[1] * 2 / 3)
     np.random.seed(seed)
@@ -130,9 +153,10 @@ def MGC(DTR, DTE, LTR, LTE, args):
     logger.debug("Compute the accuracy")
     try:
         accuracy = np.sum(label == LTE) / LTE.shape[0]
-        logger.info(f"accuracy : {accuracy:.2f}")
         errorRate = 1 - accuracy
-        logger.info(f"error rate : {errorRate:.2f}")
+        if args.type != "KFCV":
+            logger.info(f"accuracy : {accuracy:.2f}")
+            logger.info(f"error rate : {errorRate:.2f}")
     except IndexError:
         accuracy = np.sum(label == LTE)
     logger.debug("Compute the error rate")
@@ -213,9 +237,10 @@ def MGC_V2(DTR, DTE, LTR, LTE, args):
     logger.debug("Compute the accuracy")
     try:
         accuracy = np.sum(label == LTE) / LTE.shape[0]
-        logger.info(f"accuracy : {accuracy:.2f}")
         errorRate = 1 - accuracy
-        logger.info(f"error rate : {errorRate:.2f}")
+        if args.type != "KFCV":
+            logger.info(f"accuracy : {accuracy:.2f}")
+            logger.info(f"error rate : {errorRate:.2f}")
     except IndexError:
         accuracy = np.sum(label == LTE)
     logger.debug("Compute the error rate")
@@ -302,9 +327,10 @@ def NBGC(DTR, DTE, LTR, LTE, args):
     logger.debug("Compute the accuracy")
     try:
         accuracy = np.sum(label == LTE) / LTE.shape[0]
-        logger.info(f"accuracy : {accuracy:.2f}")
         errorRate = 1 - accuracy
-        logger.info(f"error rate : {errorRate:.2f}")
+        if args.type != "KFCV":
+            logger.info(f"accuracy : {accuracy:.2f}")
+            logger.info(f"error rate : {errorRate:.2f}")
     except IndexError:
         accuracy = np.sum(label == LTE)
     logger.debug("Compute the error rate")
@@ -390,16 +416,57 @@ def TCGC(DTR, DTE, LTR, LTE, args):
     logger.debug("Compute the accuracy")
     try:
         accuracy = np.sum(label == LTE) / LTE.shape[0]
-        logger.info(f"accuracy : {accuracy:.2f}")
         errorRate = 1 - accuracy
-        logger.info(f"error rate : {errorRate:.2f}")
+        if args.type != "KFCV":
+            logger.info(f"accuracy : {accuracy:.2f}")
+            logger.info(f"error rate : {errorRate:.2f}")
     except IndexError:
         accuracy = np.sum(label == LTE)
     logger.debug("Compute the error rate")
     return accuracy
 
 
-def KFCV(D, L, args):
+# def KFCV_LOO(D, L, args):
+#     """Compute K-Fold Cross Validation usign a Leave One Out (LOO) approach
+
+#     Args:
+#         D (np.array): Dataset
+#         L (np.array): Labels
+#     """
+#     # TODO: Implement the K-Fold Cross Validation
+#     accurate_prediction_MGC = 0
+#     accurate_prediction_NBGC = 0
+#     accurate_prediction_TCGC = 0
+#     for i in range(D.shape[1]):
+#         logger.debug(f"Fold {i+1}")
+#         DTR, DTE, LTR, LTE = split_db_loo(D, L, i)
+#         # print("------------------------------------------------")
+#         # print(DTR)
+#         # print(DTE)
+#         # print(LTR)
+#         # print(LTE)
+#         # input()
+#         accurate_prediction_MGC += MGC(DTR, DTE, LTR, LTE, args)
+#         accurate_prediction_NBGC += NBGC(DTR, DTE, LTR, LTE, args)
+#         accurate_prediction_TCGC += TCGC(DTR, DTE, LTR, LTE, args)
+#     accuracy_MGC = accurate_prediction_MGC / L.size * 100
+#     accuracy_NBGC = accurate_prediction_NBGC / L.size * 100
+#     accuracy_TCGC = accurate_prediction_TCGC / L.size * 100
+#     logger.info(f"Accuracy Multivariate Gaussian Classifier: {accuracy_MGC:.2f}%")
+#     logger.info(f"Accuracy Naive Bayes Gaussian Classifier: {accuracy_NBGC:.2f}%")
+#     logger.info(f"Accuracy Tied Covariance Gaussian Classifier: {accuracy_TCGC:.2f}%")
+#     error_rate_MGC = 100 - accuracy_MGC
+#     error_rate_NBGC = 100 - accuracy_NBGC
+#     error_rate_TCGC = 100 - accuracy_TCGC
+#     logger.info(f"Error rate MGC: {error_rate_MGC:.2f}%")
+#     logger.info(f"Error rate NBGC: {error_rate_NBGC:.2f}%")
+#     logger.info(f"Error rate TCGC: {error_rate_TCGC:.2f}%")
+#     logger.info(
+#         f"Best classifier: {np.argmin([error_rate_MGC, error_rate_NBGC, error_rate_TCGC])}"
+#     )
+
+
+def KFCV(D, L, args, k):
     """Compute K-Fold Cross Validation usign a Leave One Out (LOO) approach
 
     Args:
@@ -410,12 +477,23 @@ def KFCV(D, L, args):
     accurate_prediction_MGC = 0
     accurate_prediction_NBGC = 0
     accurate_prediction_TCGC = 0
-    for i in range(D.shape[1]):
-        logger.debug(f"Fold {i+1}")
-        DTR, DTE, LTR, LTE = split_db_loo(D, L, i)
+    DTR_l, DTE_l, LTR_l, LTE_l = split_db_kfold(D, L, k)
+    for DTR, DTE, LTR, LTE in zip(DTR_l, DTE_l, LTR_l, LTE_l):
+        # print(DTR)
+        # print(DTE)
+        # print(LTR)
+        # print(LTE)
+        # input()
         accurate_prediction_MGC += MGC(DTR, DTE, LTR, LTE, args)
         accurate_prediction_NBGC += NBGC(DTR, DTE, LTR, LTE, args)
         accurate_prediction_TCGC += TCGC(DTR, DTE, LTR, LTE, args)
+
+    # for i in range(D.shape[1]):
+    #     logger.debug(f"Fold {i+1}")
+    #     DTR, DTE, LTR, LTE = split_db_loo(D, L, i)
+    #     accurate_prediction_MGC += MGC(DTR, DTE, LTR, LTE, args)
+    #     accurate_prediction_NBGC += NBGC(DTR, DTE, LTR, LTE, args)
+    #     accurate_prediction_TCGC += TCGC(DTR, DTE, LTR, LTE, args)
     accuracy_MGC = accurate_prediction_MGC / L.size * 100
     accuracy_NBGC = accurate_prediction_NBGC / L.size * 100
     accuracy_TCGC = accurate_prediction_TCGC / L.size * 100
@@ -452,7 +530,8 @@ def main(args) -> None:
         TCGC(DTR, DTE, LTR, LTE, args)
     elif args.type == "KFCV":
         logger.info("\n-------------K-Fold Cross Validation---------------")
-        KFCV(D, L, args)
+        # KFCV(D, L, args, D.shape[1])
+        KFCV(D, L, args, 5)
     else:
         logger.error("Invalid type of analysis")
         raise NotImplementedError
