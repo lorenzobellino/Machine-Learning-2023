@@ -221,10 +221,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
         prog="Lab 6 : Generative models for classification of text",
-        description="wow",
-    )
-    parser.add_argument(
-        "-l", "--load", action="store_true", help="Load solutions and check correctness"
+        description="classifie tercet from Dante's Divine Comedy into one of three classes: Inferno, Purgatorio, Paradiso",
     )
     parser.add_argument(
         "-e",
