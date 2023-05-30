@@ -3,6 +3,7 @@ import logging
 import sklearn.datasets
 import scipy.optimize as opt
 import scipy.special as special
+import matplotlib.pyplot as plt
 
 import numpy as np
 
@@ -12,10 +13,8 @@ logger = logging.getLogger("lab8c ")
 def vcol(v) -> np.array:
     return v.reshape(v.size, 1)
 
-
 def vrow(v) -> np.array:
     return v.reshape(1, v.size)
-
 
 def load_iris():
     D, L = (
@@ -23,7 +22,6 @@ def load_iris():
         sklearn.datasets.load_iris()["target"],
     )
     return D, L
-
 
 def split_db_2to1(D, L, seed=0):
     nTrain = int(D.shape[1] * 2 / 3)
@@ -105,8 +103,6 @@ def TCGC(DTR, DTE, LTR, LTE, args, logger):
     label = np.argmax(SPosterior, axis=0)
     return label
 
-
-
 def MGC(DTR, DTE, LTR, LTE, args, logger):
     """Computing the Multivariate Gaussian Classifier
 
@@ -167,8 +163,7 @@ def print_confusion_matrix(logger, confusion_matrix, c) -> None:
         for i in range(3):
             logger.info(f"  {i} | {int(confusion_matrix[i,0]):3d} | {int(confusion_matrix[i,1]):3d} | {int(confusion_matrix[i,2]):3d} | {1 - confusion_matrix[i,i]/np.sum(confusion_matrix[i,:]):5.2f}")
         logger.info(f"---------------------------------") 
-    
-    
+        
 def basic_confusion_matrix(args,logger) -> None:
     logger.info("###################################################################################")
     logger.info("#------------------------ Performing clculation on -------------------------------#")
@@ -318,7 +313,41 @@ def minimum_detection_cost(args, logger) -> None:
     logger.info("-------------------------")
           
 def ROC_curves(args, logger) -> None:
-    pass
+    LLR = np.load("data/commedia_llr_infpar.npy")
+    L = np.load("data/commedia_labels_infpar.npy")
+    pi_ = [0.5,0.8,0.5,0.8] # posterior probability
+    Cfn_ = [1,1,10,1]       # Cost for False Negative
+    Cfp_ = [1,1,1,10]       # Cost for False Positive
+    x = []
+    y = []
+    for pi,Cfn,Cfp in zip(pi_,Cfn_,Cfp_):
+        logger.info(f"Testing for pi = {pi}, Cfn = {Cfn}, Cfp = {Cfp}")
+        logger.info("Calculating predictions ... ")
+        predictions = binary_decision_MDC(LLR,pi,Cfn,Cfp)
+        min_DCF = []
+        TPR = []
+        FPR = []
+        for t,p_t in predictions.items():
+            cm = calculate_confusion_matrix(p_t,L,2)
+            FNR = cm[0,1]/(cm[0,1]+cm[1,1])
+            FPR.append(cm[1,0]/(cm[0,0]+cm[1,0]))
+            TPR.append(1-FNR)
+        x += FPR
+        y += TPR
+            # TNR.append(1-FPR)
+        plt.figure()
+        plt.scatter(FPR,TPR,s=4)
+        plt.xlabel("FPR")
+        plt.ylabel("TPR")
+        plt.grid()
+        plt.savefig(f"results/{pi}-{Cfn}-{Cfp}_ROC.png")
+    plt.figure()
+    plt.scatter(FPR,TPR,s=4)
+    plt.xlabel("FPR")
+    plt.ylabel("TPR")
+    plt.grid()
+    plt.savefig(f"results/ROC_curve.png")
+    
 
     
     
@@ -331,6 +360,10 @@ def main(args):
     minimum_detection_cost(args,logger)
     logger.info("\n\n############################# BINARY TASK : ROC CURVES ###################################\n\n")
     ROC_curves(args,logger)
+    # x = [0,1,2,3]
+    # y = [1,2,3,4]
+    # plt.plot(x,y)
+    # plt.show()
 
 
 
