@@ -4,11 +4,14 @@ import sklearn.datasets
 import scipy.optimize as opt
 import scipy.special as special
 import matplotlib.pyplot as plt
+from alive_progress import alive_bar
+
+from tqdm import tqdm
 
 import numpy as np
 
 
-logger = logging.getLogger("lab8c ")
+logger = logging.getLogger("lab8")
 
 def vcol(v) -> np.array:
     return v.reshape(v.size, 1)
@@ -202,10 +205,11 @@ def basic_confusion_matrix(args,logger) -> None:
     logger.info("Calculating the predictions ...")
     predictions = np.argmax(logLikelyhood, axis=0)
     logger.info("Calculating confusion matrix ...")
-    confusion_matrix = np.zeros((3, 3))
-    for i in range(3):
-        for j in range(3):
-            confusion_matrix[i, j] = np.sum((predictions == i) & (labels == j))
+    confusion_matrix = calculate_confusion_matrix(predictions,labels,3)
+    # confusion_matrix = np.zeros((3, 3))
+    # for i in range(3):
+    #     for j in range(3):
+    #         confusion_matrix[i, j] = np.sum((predictions == i) & (labels == j))
     print_confusion_matrix(logger,confusion_matrix,3)
 
 def binary_decision(LLR,pi,Cfn,Cfp) -> np.array:
@@ -341,15 +345,191 @@ def ROC_curves(args, logger) -> None:
         plt.ylabel("TPR")
         plt.grid()
         plt.savefig(f"results/{pi}-{Cfn}-{Cfp}_ROC.png")
+        plt.close()
+    
+    logger.info("Plotting the results ...")
     plt.figure()
     plt.scatter(FPR,TPR,s=4)
     plt.xlabel("FPR")
     plt.ylabel("TPR")
     plt.grid()
     plt.savefig(f"results/ROC_curve.png")
+    plt.close()
     
+def bayes_error_plots(args,logger) -> None:
+    LLR = np.load("data/commedia_llr_infpar.npy")
+    L = np.load("data/commedia_labels_infpar.npy")
+    effPriorLogOdds = np.linspace(-3, 3,21)
+    dcf = []
+    min_dcf = []
+    logger.info("Calculating results for differen values of pi ... ")
+    with alive_bar(len(effPriorLogOdds)) as bar:
+        for p in effPriorLogOdds:
+            pi = 1 / (1+np.exp(-p))
+            # print(pi)
+            logger.debug(f"Calculating results for pi = {pi}")
+            B = min(pi,1-pi)
+            logger.debug("Calculating Normalized DFC ... ")
+            predictions = binary_decision(LLR,pi,1,1)
+            c_m = calculate_confusion_matrix(predictions,L,2)
+            # print_confusion_matrix(logger,c_m,2)
+            # input()
+            FNR = c_m[0,1] / (c_m[0,1] + c_m[1,1])
+            FPR = c_m[1,0] / (c_m[0,0] + c_m[1,0])
+            DCF  = (pi * FNR) + ((1-pi)*FPR)
+            
+            dcf.append(DCF/B)
+            logger.debug("Calculating minimum Normalized DFC ... ")
+            predictions = binary_decision_MDC(LLR,pi,1,1)
+            min_DCF = []
+            for t,p_t in predictions.items():
+                cm = calculate_confusion_matrix(p_t,L,2)
+                FNR = cm[0,1]/(cm[0,1]+cm[1,1])
+                FPR = cm[1,0]/(cm[0,0]+cm[1,0])
+                DCF = (pi * FNR) + ((1-pi) * FPR)
+                min_DCF.append((DCF,t))
+            min_DCF.sort(key=lambda x: x[0])
+            min_dcf.append(min_DCF[0][0]/B)
+            bar()
+    logger.info(f"Plotting results ... ")
+    plt.figure()
+    plt.plot(effPriorLogOdds, dcf, label='DCF', color='r')
+    plt.plot(effPriorLogOdds, min_dcf, label='min DCF', color='b')
+    plt.ylim([0, 1.1])
+    plt.xlim([-3, 3])
+    plt.savefig("results/Bayes_error_plot.png")
 
-    
+def bayes_error_comparison(args,logger) -> None:
+    LLR_eps1 = np.load("data/commedia_llr_infpar_eps1.npy")
+    LLR = np.load("data/commedia_llr_infpar.npy")
+    L = np.load("data/commedia_labels_infpar.npy")
+    effPriorLogOdds = np.linspace(-3, 3,21)
+    dcf = []
+    min_dcf = []
+    dfc_eps1 = []
+    min_dcf_eps1 = []
+    logger.info("Calculating results for differen values of pi ... ")
+    with alive_bar(len(effPriorLogOdds)) as bar:
+        for p in effPriorLogOdds:
+            pi = 1 / (1+np.exp(-p))
+            # print(pi)
+            logger.debug(f"Calculating results for pi = {pi}")
+            B = min(pi,1-pi)
+            logger.debug("Calculating Normalized DFC ... ")
+            predictions = binary_decision(LLR,pi,1,1)
+            predictions_eps1 = binary_decision(LLR_eps1,pi,1,1)
+            c_m = calculate_confusion_matrix(predictions,L,2)
+            c_m_eps1 = calculate_confusion_matrix(predictions_eps1,L,2)
+            # print_confusion_matrix(logger,c_m,2)
+            # input()
+            FNR = c_m[0,1] / (c_m[0,1] + c_m[1,1])
+            FNR_eps1 = c_m_eps1[0,1] / (c_m_eps1[0,1] + c_m_eps1[1,1])
+            FPR = c_m[1,0] / (c_m[0,0] + c_m[1,0])
+            FPR_eps1 = c_m_eps1[1,0] / (c_m_eps1[0,0] + c_m_eps1[1,0])
+            DCF  = (pi * FNR) + ((1-pi)*FPR)
+            DCF_eps1  = (pi * FNR_eps1) + ((1-pi)*FPR_eps1)
+            
+            dcf.append(DCF/B)
+            dfc_eps1.append(DCF_eps1/B)
+            logger.debug("Calculating minimum Normalized DFC ... ")
+            predictions = binary_decision_MDC(LLR,pi,1,1)
+            min_DCF = []
+            for t,p_t in predictions.items():
+                cm = calculate_confusion_matrix(p_t,L,2)
+                FNR = cm[0,1]/(cm[0,1]+cm[1,1])
+                FPR = cm[1,0]/(cm[0,0]+cm[1,0])
+                DCF = (pi * FNR) + ((1-pi) * FPR)
+                min_DCF.append((DCF,t))
+            min_DCF.sort(key=lambda x: x[0])
+            min_dcf.append(min_DCF[0][0]/B)
+
+            predictions_eps1 = binary_decision_MDC(LLR_eps1,pi,1,1)
+            min_DCF_eps1 = []
+            for t,p_t in predictions_eps1.items():
+                cm = calculate_confusion_matrix(p_t,L,2)
+                FNR = cm[0,1]/(cm[0,1]+cm[1,1])
+                FPR = cm[1,0]/(cm[0,0]+cm[1,0])
+                DCF = (pi * FNR) + ((1-pi) * FPR)
+                min_DCF_eps1.append((DCF,t))
+            min_DCF_eps1.sort(key=lambda x: x[0])
+            min_dcf_eps1.append(min_DCF_eps1[0][0]/B)
+            
+            bar()
+    logger.info(f"Plotting results ... ")
+    plt.figure()
+    plt.plot(effPriorLogOdds, dcf, label='DCF', color='r')
+    plt.plot(effPriorLogOdds, min_dcf, label='min DCF', color='b')
+    plt.plot(effPriorLogOdds, dfc_eps1, label='DCF eps1', color='g')
+    plt.plot(effPriorLogOdds, min_dcf_eps1, label='min DCF eps1', color='y')
+    plt.ylim([0, 1.1])
+    plt.xlim([-3, 3])
+    plt.savefig("results/Bayes_error_plot_comparison.png")
+
+def compare_recognizer(args,logger) -> None:
+    LLR = np.load("data/commedia_llr_infpar.npy")
+    L = np.load("data/commedia_labels_infpar.npy")
+    LLR_eps1 = np.load("data/commedia_llr_infpar_eps1.npy")
+    pi_ = [0.5,0.8,0.5,0.8] # posterior probability
+    Cfn_ = [1,1,10,1]       # Cost for False Negative
+    Cfp_ = [1,1,1,10]       # Cost for False Positive
+    min_DCFs = []
+    min_DCFs_eps1 = []
+    DCFs_0 = []
+    DCFs_1 = []
+    for pi,Cfn,Cfp in zip(pi_,Cfn_,Cfp_):
+        logger.debug(f"Testing for pi = {pi}, Cfn = {Cfn}, Cfp = {Cfp}")
+        logger.debug("Calculating predictions ... ")
+        predictions_eps0 = binary_decision_MDC(LLR,pi,Cfn,Cfp)
+        predictions_eps1 = binary_decision_MDC(LLR_eps1,pi,Cfn,Cfp)
+        predictions_0 = binary_decision(LLR,pi,Cfn,Cfp)
+        predictions_1 = binary_decision(LLR_eps1,pi,Cfn,Cfp)
+        # for p in predictions_0:
+        cm =calculate_confusion_matrix(predictions_0,L,2)
+        FNR = cm[0,1]/(cm[0,1]+cm[1,1])
+        FPR = cm[1,0]/(cm[0,0]+cm[1,0])
+        DCF = (pi * Cfn * FNR) + ((1-pi)*Cfp*FPR)
+        DCFs_0.append(DCF)
+        # for p in predictions_1:
+        cm =calculate_confusion_matrix(predictions_1,L,2)
+        FNR = cm[0,1]/(cm[0,1]+cm[1,1])
+        FPR = cm[1,0]/(cm[0,0]+cm[1,0])
+        DCF = (pi * Cfn * FNR) + ((1-pi)*Cfp*FPR)
+        DCFs_1.append(DCF)
+        min_DCF = []
+        for t,p_t in predictions_eps0.items():
+            cm = calculate_confusion_matrix(p_t,L,2)
+            FNR = cm[0,1]/(cm[0,1]+cm[1,1])
+            FPR = cm[1,0]/(cm[0,0]+cm[1,0])
+            DCF = (pi * Cfn * FNR) + ((1-pi)*Cfp*FPR)
+            min_DCF.append((DCF,t))
+        min_DCF.sort(key=lambda x: x[0])
+        min_DCFs.append(min_DCF[0])
+        min_DCF_eps1 = []
+        for t,p_t in predictions_eps1.items():
+            cm = calculate_confusion_matrix(p_t,L,2)
+            FNR = cm[0,1]/(cm[0,1]+cm[1,1])
+            FPR = cm[1,0]/(cm[0,0]+cm[1,0])
+            DCF = (pi * Cfn * FNR) + ((1-pi)*Cfp*FPR)
+            min_DCF_eps1.append((DCF,t))
+        min_DCF_eps1.sort(key = lambda x : x[0])
+        min_DCFs_eps1.append(min_DCF_eps1[0])
+        
+        logger.debug(f"Minimum DCF : {min_DCF[0][0]}")
+        logger.debug(f"Threshold : {min_DCF[0][1]}")
+        logger.debug(f"Minimum DCF 1 : {min_DCF_eps1[0][0]}")
+        logger.debug(f"Threshold 1 : {min_DCF_eps1[0][1]}")
+    logger.info("--------------------------------------------------------")
+    logger.info("|                  |   eps = 0.001   |    eps = 1      |")
+    logger.info("--------------------------------------------------------")
+    logger.info("|  pi  | Cfn | Cfp |  DCF  | min DCF |  DCF  | min DCF |")
+    logger.info("--------------------------------------------------------")
+    for i in range(4):
+        B = min(pi_[i]*Cfn_[i],(1-pi_[i])*Cfp_[i])
+        logger.info(f"| {pi_[i]:.2f} | {Cfn_[i]:3d} | {Cfp_[i]:3d} | {DCFs_0[i]/B:5.3f} |  {min_DCFs[i][0]/B:5.3f}  | {DCFs_1[i]/B:5.3f} |  {min_DCFs_eps1[i][0]/B:5.3f}  | ")
+        # logger.info(f" {pi_[i]:.2f} | {Cfn_[i]:3d} | {Cfp_[i]:3d} | {min_DCFs[i][0]/B:4.3f}")
+    logger.info("--------------------------------------------------------")
+
+
     
 def main(args):
     logger.info("\n\n###################### BASIC CALCULATIONS OF CONFUSION MATRIX ############################\n\n")
@@ -360,11 +540,12 @@ def main(args):
     minimum_detection_cost(args,logger)
     logger.info("\n\n############################# BINARY TASK : ROC CURVES ###################################\n\n")
     ROC_curves(args,logger)
-    # x = [0,1,2,3]
-    # y = [1,2,3,4]
-    # plt.plot(x,y)
-    # plt.show()
-
+    logger.info("\n\n######################### BINARY TASK : BAYES ERROR PLOTS ################################\n\n")
+    bayes_error_plots(args,logger)
+    logger.info("\n\n####################### BINARY TASK : RECOGNIZER COMPARISON ##############################\n\n")
+    compare_recognizer(args,logger)
+    logger.info("\n\n#################### BINARY TASK : BAYES ERROR PLOTS COMPARISON ###########################\n\n")
+    bayes_error_comparison(args,logger)
 
 
 
@@ -384,4 +565,5 @@ if __name__ == "__main__":
     formatter = logging.Formatter("%(levelname)s - %(message)s")
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+    # logger.addHandler(TqdmLoggingHandler())
     main(args)
