@@ -478,6 +478,9 @@ def bayes_error_comparison(args,logger) -> None:
         plt.xlim([-3, 3])
         plt.savefig("results/Bayes_error_plot_comparison.png")
 
+def multiclass_task(args,logger) -> None:
+    pass
+
 def main(args):
     if args.step == 1:
         logger.info("\n\n###################### BASIC CALCULATIONS OF CONFUSION MATRIX ############################\n\n")
@@ -501,6 +504,9 @@ def main(args):
         logger.info("\n\n#################### BINARY TASK : BAYES ERROR PLOTS COMPARISON ###########################\n\n")
         bayes_error_comparison(args,logger)
     elif args.step == 8:
+        logger.info("\n\n################# MULTICLASS TASK : CONFUSION MATRIX AND BAYES COST ######################\n\n")
+        multiclass_task(args,logger)
+    elif args.step == 9:
         logger.info("\n\n###################### BASIC CALCULATIONS OF CONFUSION MATRIX ############################\n\n")
         basic_confusion_matrix(args,logger)
         logger.info("\n\n########################## BINARY TASK : OPTIMAL DECISION ################################\n\n")
@@ -530,8 +536,9 @@ if __name__ == "__main__":
         "4 => Binary task : ROC curves\n"+
         "5 => Binary task : Bayes error plots\n"+
         "6 => Binary task : Recognizer comparison\n"+
-        "7 => Binary task : Bayes error plots comparison\n"
-        "8 => All of the above"
+        "7 => Binary task : Bayes error plots comparison\n"+
+        "8 => Multiclass task : Confusion Matrix and Bayes Cost\n"+
+        "9 => All of the above"
         ,
     )
     parser.add_argument("-s", "--step", type=int, default=1, help="Step to use : <1, 2, 3>")
